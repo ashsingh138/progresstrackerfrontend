@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* FORCE DARK MODE: 
+   This tells Tailwind v4: "If the HTML tag has the class 'dark', apply dark mode styles."
+*/
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+body {
+  /* Default background (Light) */
+  @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+}
+
+/* Dark background */
+.dark body {
+  @apply bg-slate-900 text-white;
+}
