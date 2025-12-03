@@ -11,12 +11,12 @@ import SettingsView from "./components/SettingsView";
 import AuthPage from "./components/AuthPage";      
 import ProfileView from "./components/ProfileView"; 
 
-// DYNAMIC URL: Uses the Environment variable if available, otherwise falls back to localhost
+// Dynamic API URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/targets";
-// AUTH URL needs to be dynamic too
 const AUTH_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/targets', '/auth') : "http://localhost:5000/api/auth";
 
 export default function App() {
+  // Auth State - Safe parsing
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState(() => {
     try {
@@ -27,29 +27,39 @@ export default function App() {
     }
   });
 
+  // Data State
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  // UI State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard"); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
-  
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  // --- THEME STATE ---
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+
+  // Apply Theme Class
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') root.classList.add('dark');
-    else root.classList.remove('dark');
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
+  // --- AUTH HANDLERS ---
   const handleLogin = (newToken, newUser) => {
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
@@ -73,6 +83,7 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  // --- DATA FETCHING ---
   const fetchTargets = async () => {
     if (!token) return;
     try {
@@ -85,7 +96,7 @@ export default function App() {
       setTargets(data);
       setError(null);
     } catch (err) {
-      setError("Could not connect to server.");
+      setError("Could not connect to server. Ensure backend is running.");
     } finally {
       setLoading(false);
     }
@@ -95,6 +106,7 @@ export default function App() {
     fetchTargets();
   }, [token]);
 
+  // --- ACTIONS ---
   const authFetch = async (url, options = {}) => {
     const headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     return fetch(url, { ...options, headers });
@@ -152,11 +164,13 @@ export default function App() {
     } catch (err) { alert("Error deleting log"); }
   };
 
+  // --- RENDER ---
+
   if (!token) {
-    // Pass the Dynamic Auth URL to AuthPage
     return <AuthPage onLogin={handleLogin} apiUrl={AUTH_URL} />;
   }
 
+  // Safe Name Access - Fixes the "split of undefined" error
   const firstName = user?.name ? user.name.split(' ')[0] : 'Student';
 
   const filteredTargets = targets
@@ -169,11 +183,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors flex flex-col md:flex-row font-sans">
       
+      {/* Mobile Bar */}
       <div className="md:hidden bg-white dark:bg-slate-800 border-b dark:border-slate-700 p-4 flex justify-between items-center sticky top-0 z-30">
         <div className="font-extrabold text-blue-600 flex items-center gap-2"><TrendingUp /> TargetFlow</div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-600 dark:text-slate-300"><Menu /></button>
       </div>
 
+      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-800 border-r dark:border-slate-700 p-6 flex flex-col gap-6 transition-transform duration-300 md:translate-x-0 md:static md:h-screen ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
         <div className="hidden md:flex items-center gap-2 text-blue-600 font-extrabold text-xl"><TrendingUp /> TargetFlow</div>
         
@@ -215,6 +231,7 @@ export default function App() {
         </div>
       </aside>
 
+      {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen">
         {activeTab === 'profile' ? (
            <ProfileView 
@@ -222,7 +239,7 @@ export default function App() {
              token={token} 
              onUpdateUser={handleUpdateUser} 
              onLogout={handleLogout} 
-             apiUrl={AUTH_URL} // Pass dynamic Auth URL
+             apiUrl={AUTH_URL} 
            />
         ) : (
           <>
