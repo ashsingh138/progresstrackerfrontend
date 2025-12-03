@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, Save, Trash2, Edit2, Calendar, CheckCircle2, CircleDashed } from 'lucide-react';
-import { calculateTotalProgress } from '../utils/helpers';
+import React, { useState, useEffect } from 'react';
+import { X, Save, Trash2, Edit2, Calendar, CheckCircle2, CircleDashed, AlertCircle } from 'lucide-react';
+// Note: removed calculateTotalProgress import as we are changing the metric logic
 
 const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onEditLog }) => {
   if (!isOpen || !target) return null;
@@ -11,43 +11,56 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
   const [logData, setLogData] = useState({
     date: new Date().toISOString().split('T')[0],
     planned: '',
-    completed: '',
+    completed: '0', // Default to 0 string for percentage
     note: ''
   });
 
-  const totalCompleted = calculateTotalProgress(target.logs);
-
-  // Helper to get the correct ID (Handles MongoDB _id vs local id)
+  // Helper to get the correct ID
   const getTargetId = () => target._id || target.id;
+
+  // Calculate detailed stats for the header
+  const stats = (target.logs || []).reduce((acc, log) => {
+    const val = parseInt(log.completed) || 0;
+    if (val >= 100) acc.achieved++;
+    else acc.missed++;
+    return acc;
+  }, { achieved: 0, missed: 0 });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const tId = getTargetId();
     
-    // SAFETY CHECK: Stop if ID is missing
     if (!tId) {
       alert("Error: Target ID is missing. Please refresh the page.");
-      console.error("Missing ID for target:", target);
       return;
     }
     
+    // Ensure completed is stored as a stringified number for consistency
+    const payload = { ...logData, completed: logData.completed.toString() };
+
     if (editingLogId) {
-      onEditLog(tId, editingLogId, logData);
+      onEditLog(tId, editingLogId, payload);
       setEditingLogId(null);
     } else {
-      onAddLog(tId, logData);
+      onAddLog(tId, payload);
     }
-    setLogData({ ...logData, planned: '', completed: '', note: '' });
+    // Reset form
+    setLogData({ 
+        date: new Date().toISOString().split('T')[0], 
+        planned: '', 
+        completed: '0', 
+        note: '' 
+    });
   };
 
   const startEdit = (log) => {
     setLogData({
       date: log.date,
       planned: log.planned,
-      completed: log.completed,
+      // Ensure we handle old text data gracefully, default to 0 if not a number
+      completed: parseInt(log.completed) || 0,
       note: log.note
     });
-    // Handle both _id (mongo) and id (local) for logs
     setEditingLogId(log._id || log.id);
   };
 
@@ -56,6 +69,13 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
     if(window.confirm('Delete this log entry?')) {
       onDeleteLog(tId, logId);
     }
+  };
+
+  // Helper for color coding the slider
+  const getProgressColor = (val) => {
+    if (val < 30) return 'text-rose-500';
+    if (val < 70) return 'text-amber-500';
+    return 'text-emerald-500';
   };
 
   return (
@@ -71,12 +91,18 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
              </button>
           </div>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <p className="text-sm text-slate-500 dark:text-slate-400 italic">
               {target.description || "No description provided."}
             </p>
-            <div className="text-sm font-medium px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full self-start">
-               Total Accumulated: {totalCompleted}
+            {/* Quick Stats in Header */}
+            <div className="flex gap-3 text-xs font-semibold">
+               <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full">
+                 {stats.achieved} Days Achieved
+               </span>
+               <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-full">
+                 {stats.missed} Days Missed
+               </span>
             </div>
           </div>
         </div>
@@ -84,10 +110,10 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           
           {/* Left Panel: Input Form */}
-          <div className="p-6 md:w-1/3 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto">
+          <div className="p-6 md:w-5/12 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto">
              <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                {editingLogId ? <Edit2 size={16} className="text-amber-500"/> : <CircleDashed size={16} className="text-blue-500"/>}
-               {editingLogId ? 'Edit Entry' : 'New Daily Entry'}
+               {editingLogId ? 'Edit Daily Log' : 'Log Today\'s Progress'}
              </h3>
              
              <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,30 +132,40 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Target (Planned)</label>
                  <input 
                    type="text" 
-                   placeholder="e.g. 5 Questions"
+                   placeholder="e.g. Read 20 pages"
                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                    value={logData.planned}
                    onChange={e => setLogData({...logData, planned: e.target.value})}
                  />
                </div>
 
+               {/* New Percentage Selector */}
                <div>
-                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Completed)</label>
+                 <div className="flex justify-between items-end mb-2">
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Achieved %</label>
+                    <span className={`text-sm font-bold ${getProgressColor(logData.completed)}`}>{logData.completed}%</span>
+                 </div>
                  <input 
-                   type="text" 
-                   
-                   placeholder="e.g. 5 questions done"
-                   className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                   type="range" 
+                   min="0" 
+                   max="100" 
+                   step="5"
+                   className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-blue-600"
                    value={logData.completed}
                    onChange={e => setLogData({...logData, completed: e.target.value})}
                  />
+                 <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>0%</span>
+                    <span>50%</span>
+                    <span>100%</span>
+                 </div>
                </div>
 
                <div>
-                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Notes</label>
+                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Remarks (What's left & Why?)</label>
                  <textarea 
                    rows="3"
-                   placeholder="Topics covered..."
+                   placeholder="e.g. Could only do 10 pages because..."
                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                    value={logData.note}
                    onChange={e => setLogData({...logData, note: e.target.value})}
@@ -140,7 +176,7 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                  {editingLogId && (
                    <button 
                      type="button" 
-                     onClick={() => { setEditingLogId(null); setLogData({...logData, planned: '', completed: '', note: ''}); }}
+                     onClick={() => { setEditingLogId(null); setLogData({date: new Date().toISOString().split('T')[0], planned: '', completed: '0', note: ''}); }}
                      className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg"
                    >
                      Cancel
@@ -172,33 +208,47 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                   <p>No activity recorded.</p>
                 </div>
               ) : (
-                [...target.logs].sort((a, b) => new Date(b.date) - new Date(a.date)).map((log) => (
-                  <div key={log._id || log.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                          {log.date}
-                        </span>
-                        {log.note && <span className="text-sm font-medium text-slate-800 dark:text-slate-200 line-clamp-1">{log.note}</span>}
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEdit(log)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><Edit2 size={14}/></button>
-                        <button onClick={() => handleDelete(log._id || log.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={14}/></button>
+                [...target.logs].sort((a, b) => new Date(b.date) - new Date(a.date)).map((log) => {
+                  const percent = parseInt(log.completed) || 0;
+                  const isSuccess = percent >= 100;
+                  
+                  return (
+                    <div key={log._id || log.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden">
+                      {/* Left border color indicator */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${isSuccess ? 'bg-emerald-500' : 'bg-rose-400'}`}></div>
+                      
+                      <div className="pl-2">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                              {log.date}
+                            </span>
+                            {/* Percentage Badge */}
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${isSuccess ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {percent}% Done
+                            </span>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => startEdit(log)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><Edit2 size={14}/></button>
+                            <button onClick={() => handleDelete(log._id || log.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={14}/></button>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-2">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold block">Planned</span>
+                          <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">{log.planned || '-'}</span>
+                        </div>
+
+                        {log.note && (
+                          <div className="bg-slate-50 dark:bg-slate-700/50 p-2 rounded text-xs text-slate-600 dark:text-slate-300 mt-2">
+                            <span className="font-bold text-slate-400 block mb-0.5">Remark:</span>
+                            {log.note}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-6 text-sm">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Planned</span>
-                        <span className="text-slate-600 dark:text-slate-300 font-medium">{log.planned || '-'}</span>
-                      </div>
-                      <div className="flex flex-col">
-                         <span className="text-[10px] text-emerald-500 uppercase font-bold">Done</span>
-                         <span className="text-emerald-700 dark:text-emerald-400 font-bold text-lg leading-none">{log.completed}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

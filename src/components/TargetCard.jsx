@@ -1,13 +1,31 @@
 import React from "react";
-import { Trash2, Pin, Archive, RotateCcw, ListPlus, Activity } from "lucide-react";
-import { calculateDaysLeft, getDeadlineStatus, calculateTotalProgress } from "../utils/helpers";
+import { Trash2, Pin, Archive, RotateCcw, ListPlus, TrendingUp, CheckCircle, XCircle } from "lucide-react";
+import { calculateDaysLeft, getDeadlineStatus } from "../utils/helpers";
 
 const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchive, isArchivedView }) => {
-  const totalCompleted = calculateTotalProgress(target.logs);
   const daysLeft = calculateDaysLeft(target.dueDate);
-  // Status is now just based on deadline, not "completion" since we have no total
   const status = getDeadlineStatus(daysLeft, false); 
   const StatusIcon = status.icon;
+
+  // --- STATS LOGIC ---
+  const stats = (target.logs || []).reduce((acc, log) => {
+    // Parse the completed string as integer. Handle legacy text data safely.
+    const percentage = parseInt(log.completed);
+    
+    // Check if it is a valid number
+    if (!isNaN(percentage)) {
+      if (percentage >= 100) {
+        acc.achieved++;
+      } else {
+        acc.missed++;
+      }
+    }
+    return acc;
+  }, { achieved: 0, missed: 0 });
+
+  const totalLoggedDays = stats.achieved + stats.missed;
+  // Prevent division by zero
+  const successRate = totalLoggedDays > 0 ? Math.round((stats.achieved / totalLoggedDays) * 100) : 0;
 
   return (
     <div className={`
@@ -34,7 +52,7 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
         <div className="flex gap-1">
            {!isArchivedView && (
             <button 
-              onClick={() => onTogglePin(target.id)}
+              onClick={() => onTogglePin(target._id || target.id)}
               className={`p-1.5 rounded-md transition-colors ${target.isPinned ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-blue-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
               title={target.isPinned ? "Unpin" : "Pin to top"}
             >
@@ -43,7 +61,7 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
            )}
            
            <button 
-              onClick={() => onToggleArchive(target.id)}
+              onClick={() => onToggleArchive(target._id || target.id)}
               className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors"
               title={isArchivedView ? "Unarchive" : "Archive"}
            >
@@ -51,7 +69,7 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
            </button>
 
            <button 
-            onClick={() => onDelete(target.id)}
+            onClick={() => onDelete(target._id || target.id)}
             className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-md transition-colors"
             title="Delete"
           >
@@ -60,7 +78,7 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
         </div>
       </div>
 
-      {/* Description / Info */}
+      {/* Description */}
       <div className="mb-4 flex-1 cursor-pointer" onClick={() => onOpenDetail(target)}>
          {target.description && (
            <p className="text-sm text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">
@@ -68,16 +86,31 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
            </p>
          )}
          
-         {/* Stats Row */}
-         <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400">
-               <Activity size={16} />
+         {/* --- UPDATED STATS ROW --- */}
+         <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Success Rate</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{successRate}%</span>
             </div>
-            <div>
-               <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">Accumulated</p>
-               <p className="text-lg font-bold text-slate-800 dark:text-white leading-none">
-                 {totalCompleted} <span className="text-xs font-normal text-slate-500">done</span>
-               </p>
+            
+            {/* Progress Bar */}
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full mb-3 overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${successRate}%` }}></div>
+            </div>
+
+            <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                    <CheckCircle size={14} className="text-emerald-500" />
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        <span className="font-bold">{stats.achieved}</span> Achieved
+                    </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <XCircle size={14} className="text-rose-400" />
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        <span className="font-bold">{stats.missed}</span> Missed
+                    </span>
+                </div>
             </div>
          </div>
       </div>
@@ -97,7 +130,7 @@ const TargetCard = ({ target, onDelete, onOpenDetail, onTogglePin, onToggleArchi
           onClick={() => onOpenDetail(target)}
           className="mt-auto w-full py-2 bg-slate-50 dark:bg-slate-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 group"
         >
-          <ListPlus size={16} className="group-hover:text-blue-500"/> View Daily Logs
+          <ListPlus size={16} className="group-hover:text-blue-500"/> Update Progress
         </button>
       )}
     </div>
