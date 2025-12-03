@@ -117,7 +117,7 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Completedt)</label>
                  <input 
                    type="text" 
-                   required
+                   
                    placeholder="e.g. 5 questions done"
                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                    value={logData.completed}
