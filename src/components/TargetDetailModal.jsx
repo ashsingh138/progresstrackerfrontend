@@ -114,7 +114,7 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                </div>
 
                <div>
-                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Count)</label>
+                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Completedt)</label>
                  <input 
                    type="text" 
                    required
