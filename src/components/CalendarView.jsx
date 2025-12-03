@@ -51,6 +51,7 @@ const CalendarView = ({ targets }) => {
                <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[80px]">
                  {dayTargets.map(t => (
                    <div 
+                     // CRITICAL FIX: Use _id OR id
                      key={t._id || t.id} 
                      className={`text-[10px] px-1.5 py-1 rounded truncate border-l-2 border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300`}
                    >

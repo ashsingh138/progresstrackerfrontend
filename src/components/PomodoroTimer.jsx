@@ -3,12 +3,11 @@ import { Play, Pause, RotateCcw, Save, Settings } from 'lucide-react';
 
 const PomodoroTimer = ({ targets, onUpdateProgress }) => {
   const [selectedTargetId, setSelectedTargetId] = useState('');
-  const [duration, setDuration] = useState(25); // Default 25 mins
+  const [duration, setDuration] = useState(25); 
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [sessionType, setSessionType] = useState('focus');
 
-  // Sync timeLeft when duration changes (only if not active)
   useEffect(() => {
     if (!isActive) {
       setTimeLeft(duration * 60);
@@ -21,9 +20,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
       interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
-      if (sessionType === 'focus' && selectedTargetId) {
-        // Notification logic here
-      }
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft, sessionType, selectedTargetId]);
@@ -50,7 +46,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
           <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`}></div>
           Focus Session
         </h2>
-        {/* Quick Duration Presets */}
         <div className="flex gap-1">
           {[15, 25, 45, 60].map(mins => (
             <button 
@@ -64,7 +59,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
         </div>
       </div>
 
-      {/* Custom Duration Slider */}
       <div className="mb-6 px-4">
         <input 
           type="range" 
@@ -77,7 +71,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
         <p className="text-xs text-slate-400 mt-2">Session Length: {duration} minutes</p>
       </div>
 
-      {/* Target Selector */}
       <div className="mb-8">
         <select 
           className="w-full p-3 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -85,13 +78,15 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
           onChange={(e) => setSelectedTargetId(e.target.value)}
         >
           <option value="">-- No specific target --</option>
-          {targets.filter(t => t.current < t.total).map(t => (
-            <option key={t.id} value={t.id}>{t.title} ({t.current}/{t.total})</option>
+          {targets.map(t => (
+            // CRITICAL FIX: Use _id for Mongo, id for Local fallback
+            <option key={t._id || t.id} value={t._id || t.id}>
+              {t.title}
+            </option>
           ))}
         </select>
       </div>
 
-      {/* Timer Display */}
       <div className="mb-8 relative">
         <div className="text-7xl font-mono font-bold text-slate-800 dark:text-white tracking-tighter">
           {formatTime(timeLeft)}
@@ -101,7 +96,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
         </p>
       </div>
 
-      {/* Controls - Optimized for Touch */}
       <div className="flex justify-center gap-4">
         <button 
           onClick={toggleTimer}
@@ -119,7 +113,6 @@ const PomodoroTimer = ({ targets, onUpdateProgress }) => {
         </button>
       </div>
 
-      {/* Manual Log */}
       {selectedTargetId && (
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700">
            <button 

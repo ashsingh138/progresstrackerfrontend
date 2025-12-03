@@ -17,13 +17,18 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
 
   const totalCompleted = calculateTotalProgress(target.logs);
 
+  // Helper to get the correct ID
+  const getTargetId = () => target._id || target.id;
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const tId = getTargetId();
+    
     if (editingLogId) {
-      onEditLog(target.id, editingLogId, logData);
+      onEditLog(tId, editingLogId, logData);
       setEditingLogId(null);
     } else {
-      onAddLog(target.id, logData);
+      onAddLog(tId, logData);
     }
     setLogData({ ...logData, planned: '', completed: '', note: '' });
   };
@@ -35,12 +40,13 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
       completed: log.completed,
       note: log.note
     });
-    setEditingLogId(log.id);
+    // Handle both _id (mongo) and id (local) for logs
+    setEditingLogId(log._id || log.id);
   };
 
   const handleDelete = (logId) => {
     if(window.confirm('Delete this log entry?')) {
-      onDeleteLog(target.id, logId);
+      onDeleteLog(getTargetId(), logId);
     }
   };
 
@@ -100,11 +106,11 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                </div>
 
                <div>
-                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Completed)</label>
+                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Done (Count)</label>
                  <input 
-                   type="text" 
+                   type="number" 
                    required
-                   placeholder="e.g. 5 Questions done"
+                   placeholder="e.g. 5"
                    className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                    value={logData.completed}
                    onChange={e => setLogData({...logData, completed: e.target.value})}
@@ -159,7 +165,7 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                 </div>
               ) : (
                 [...target.logs].sort((a, b) => new Date(b.date) - new Date(a.date)).map((log) => (
-                  <div key={log.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group">
+                  <div key={log._id || log.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow group">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
@@ -169,7 +175,7 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => startEdit(log)} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><Edit2 size={14}/></button>
-                        <button onClick={() => handleDelete(log.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={14}/></button>
+                        <button onClick={() => handleDelete(log._id || log.id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded"><Trash2 size={14}/></button>
                       </div>
                     </div>
                     
