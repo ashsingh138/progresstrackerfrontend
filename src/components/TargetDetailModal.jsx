@@ -17,12 +17,19 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
 
   const totalCompleted = calculateTotalProgress(target.logs);
 
-  // Helper to get the correct ID
+  // Helper to get the correct ID (Handles MongoDB _id vs local id)
   const getTargetId = () => target._id || target.id;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const tId = getTargetId();
+    
+    // SAFETY CHECK: Stop if ID is missing
+    if (!tId) {
+      alert("Error: Target ID is missing. Please refresh the page.");
+      console.error("Missing ID for target:", target);
+      return;
+    }
     
     if (editingLogId) {
       onEditLog(tId, editingLogId, logData);
@@ -45,8 +52,9 @@ const TargetDetailModal = ({ isOpen, onClose, target, onAddLog, onDeleteLog, onE
   };
 
   const handleDelete = (logId) => {
+    const tId = getTargetId();
     if(window.confirm('Delete this log entry?')) {
-      onDeleteLog(getTargetId(), logId);
+      onDeleteLog(tId, logId);
     }
   };
 
